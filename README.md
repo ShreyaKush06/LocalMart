@@ -67,14 +67,16 @@ To get started with the project locally, follow these steps:
    go run main.go
 
 ## 🌟 Features
--User login and homepage
--Listings of campus-only items
--Basic inventory and comparison with Blinkit
+
+- User login and homepage
+- Listings of campus-only items
+- Basic inventory and comparison with Blinkit
 
 ## 🚧 Future Scope
--Admin portal for shopkeepers
--Real-time inventory sync
--Mobile-friendly UI and delivery tracking
+
+- Admin portal for shopkeepers
+- Real-time inventory sync
+- Mobile-friendly UI and delivery tracking
 
 
 
