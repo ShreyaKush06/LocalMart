@@ -78,8 +78,35 @@ To get started with the project locally, follow these steps:
 - Real-time inventory sync
 - Mobile-friendly UI and delivery tracking
 
+## 📂 New Project Structure
 
-
+/campus-cart-blockchain
+├── /backend
+│   ├── go.mod
+│   ├── go.sum
+│   ├── main.go
+│   ├── contracts
+│   │   └── CampusShop.abi
+│   └── .env
+├── /frontend
+│   ├── public
+│   ├── src
+│   │   ├── App.js
+│   │   ├── App.css
+│   │   ├── components
+│   │   │   ├── ProductList.js
+│   │   │   └── OrderList.js
+│   │   └── contracts
+│   │       └── CampusShop.json
+│   ├── package.json
+│   └── package-lock.json
+└── /smart-contracts
+    ├── contracts
+    │   └── CampusShop.sol
+    ├── test
+    │   └── CampusShop_test.js
+    ├── hardhat.config.js
+    └── package.json
 
 
 
