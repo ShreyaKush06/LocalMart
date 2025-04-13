@@ -1,138 +1,75 @@
-// main.go
 package main
 
 import (
-	"context"
-	"crypto/ecdsa"
+	"encoding/json"
 	"fmt"
 	"log"
-	"math/big"
-	"os"
-
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
+	"net/http"
+	"blinket/blockchain"
+	"github.com/gorilla/mux"
 )
 
-var client *ethclient.Client
-var contract *CampusShop
+var bc *blockchain.Blockchain
+
+type Product struct {
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	Price       string `json:"price"`
+	Shop        string `json:"shop"`
+	OnBlinkit   bool   `json:"onBlinkit"`
+	Location    string `json:"location,omitempty"`
+}
+
+var products = []Product{
+	{ID: 1, Name: "Campus T-Shirt", Price: "₹499", Shop: "Campus Store", OnBlinkit: false},
+	{ID: 2, Name: "Special Chai Mix", Price: "₹150", Shop: "Canteen", OnBlinkit: false},
+}
 
 func main() {
-	// Load environment variables
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-
-	// Connect to Ethereum client
-	client, err = ethclient.Dial(os.Getenv("ETHEREUM_NODE"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Load contract
-	contractAddress := common.HexToAddress(os.Getenv("CONTRACT_ADDRESS"))
-	contract, err = NewCampusShop(contractAddress, client)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Set up Gin router
-	r := gin.Default()
-
-	// API routes
-	r.GET("/products", getProducts)
-	r.POST("/products", addProduct)
-	r.POST("/orders", placeOrder)
-	r.PUT("/orders/:id/fulfill", fulfillOrder)
-	r.PUT("/orders/:id/pay", confirmPayment)
-
-	// Start server
-	r.Run(":8080")
+	bc = blockchain.NewBlockchain()
+	
+	r := mux.NewRouter()
+	
+	// Product endpoints
+	r.HandleFunc("/products", getProducts).Methods("GET")
+	r.HandleFunc("/products", addProduct).Methods("POST")
+	
+	// Blockchain endpoints
+	r.HandleFunc("/blockchain", getBlockchain).Methods("GET")
+	
+	// Login endpoint
+	r.HandleFunc("/login", login).Methods("POST")
+	
+	fmt.Println("Server running on :8080")
+	log.Fatal(http.ListenAndServe(":8080", r))
 }
 
-func getProducts(c *gin.Context) {
-	// Call smart contract to get products
-	opts := &bind.CallOpts{Context: context.Background()}
-	
-	productCount, err := contract.ProductCount(opts)
-	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+func getProducts(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(products)
+}
+
+func addProduct(w http.ResponseWriter, r *http.Request) {
+	var newProduct Product
+	if err := json.NewDecoder(r.Body).Decode(&newProduct); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	var products []Product
-	for i := 1; i <= int(productCount.Int64()); i++ {
-		product, err := contract.Products(opts, big.NewInt(int64(i)))
-		if err != nil {
-			continue
-		}
-		products = append(products, Product{
-			ID:          uint(i),
-			Name:        product.Name,
-			Price:       product.Price.Uint64(),
-			Description: product.Description,
-			IPFSHash:    product.IpfsHash,
-			ShopOwner:   product.ShopOwner.Hex(),
-			IsAvailable: product.IsAvailable,
-		})
-	}
-
-	c.JSON(200, products)
+	
+	// Add to blockchain
+	bc.AddBlock(newProduct.ID)
+	
+	products = append(products, newProduct)
+	w.WriteHeader(http.StatusCreated)
 }
 
-func addProduct(c *gin.Context) {
-	// Implementation to add product to blockchain
+func getBlockchain(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(bc.GetBlocks())
 }
 
-func placeOrder(c *gin.Context) {
-	// Implementation to place order on blockchain
-}
-
-func fulfillOrder(c *gin.Context) {
-	// Implementation to mark order as fulfilled
-}
-
-func confirmPayment(c *gin.Context) {
-	// Implementation to confirm payment
-}
-
-// Helper function to get transaction auth
-func getAuth() (*bind.TransactOpts, error) {
-	privateKey, err := crypto.HexToECDSA(os.Getenv("PRIVATE_KEY"))
-	if err != nil {
-		return nil, err
-	}
-
-	publicKey := privateKey.Public()
-	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
-	if !ok {
-		return nil, fmt.Errorf("error casting public key to ECDSA")
-	}
-
-	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
-	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
-	if err != nil {
-		return nil, err
-	}
-
-	chainID, err := client.ChainID(context.Background())
-	if err != nil {
-		return nil, err
-	}
-
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
-	if err != nil {
-		return nil, err
-	}
-
-	auth.Nonce = big.NewInt(int64(nonce))
-	auth.Value = big.NewInt(0)      // in wei
-	auth.GasLimit = uint64(3000000) // in units
-	auth.GasPrice = big.NewInt(1000000)
-
-	return auth, nil
+func login(w http.ResponseWriter, r *http.Request) {
+	// Simplified login (add proper auth later)
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Login successful"})
 }
