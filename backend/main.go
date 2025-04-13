@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"blinket/blockchain"
+	"backend/blockchain"
 	"github.com/gorilla/mux"
 )
 
