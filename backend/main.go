@@ -26,6 +26,8 @@ var products = []Product{
 	{ID: 2, Name: "Special Chai Mix", Price: "₹150", Shop: "Canteen", OnBlinkit: false},
 }
 
+var requestedItems = []Product{}
+
 func main() {
 	bc = blockchain.NewBlockchain()
 
@@ -34,6 +36,11 @@ func main() {
 	// Product endpoints
 	r.HandleFunc("/products", getProducts).Methods("GET")
 	r.HandleFunc("/products", addProduct).Methods("POST")
+
+	// Requested items endpoints
+	r.HandleFunc("/requests", requestItem).Methods("POST")
+	r.HandleFunc("/requests", getRequestedItems).Methods("GET")
+	r.HandleFunc("/list-item", listItem).Methods("POST")
 
 	// Blockchain endpoints
 	r.HandleFunc("/blockchain", getBlockchain).Methods("GET")
@@ -51,24 +58,72 @@ func getProducts(w http.ResponseWriter, r *http.Request) {
 }
 
 func addProduct(w http.ResponseWriter, r *http.Request) {
-    var newProduct Product
-    if err := json.NewDecoder(r.Body).Decode(&newProduct); err != nil {
-        http.Error(w, err.Error(), http.StatusBadRequest)
-        return
-    }
+	var newProduct Product
+	if err := json.NewDecoder(r.Body).Decode(&newProduct); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-    // Add complete product to blockchain
-    bc.AddBlock(blockchain.Product{
-        ID:        newProduct.ID,
-        Name:      newProduct.Name,
-        Price:     newProduct.Price,
-        Shop:      newProduct.Shop,
-        OnBlinkit: newProduct.OnBlinkit,
-        Location:  newProduct.Location,
-    })
+	// Add complete product to blockchain
+	bc.AddBlock(blockchain.Product{
+		ID:        newProduct.ID,
+		Name:      newProduct.Name,
+		Price:     newProduct.Price,
+		Shop:      newProduct.Shop,
+		OnBlinkit: newProduct.OnBlinkit,
+		Location:  newProduct.Location,
+	})
 
-    products = append(products, newProduct)
-    w.WriteHeader(http.StatusCreated)
+	products = append(products, newProduct)
+	w.WriteHeader(http.StatusCreated)
+}
+
+func getRequestedItems(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(requestedItems)
+}
+
+func requestItem(w http.ResponseWriter, r *http.Request) {
+	var requestedItem Product
+	if err := json.NewDecoder(r.Body).Decode(&requestedItem); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	requestedItems = append(requestedItems, requestedItem)
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Item requested successfully"})
+}
+
+func listItem(w http.ResponseWriter, r *http.Request) {
+	var itemToBeListed Product
+	if err := json.NewDecoder(r.Body).Decode(&itemToBeListed); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Add item to blockchain
+	bc.AddBlock(blockchain.Product{
+		ID:        itemToBeListed.ID,
+		Name:      itemToBeListed.Name,
+		Price:     itemToBeListed.Price,
+		Shop:      itemToBeListed.Shop,
+		OnBlinkit: itemToBeListed.OnBlinkit,
+		Location:  itemToBeListed.Location,
+	})
+
+	// Add item to products list
+	products = append(products, itemToBeListed)
+
+	// Remove from requested items
+	for i, item := range requestedItems {
+		if item.ID == itemToBeListed.ID {
+			requestedItems = append(requestedItems[:i], requestedItems[i+1:]...)
+			break
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Item listed successfully"})
 }
 
 func getBlockchain(w http.ResponseWriter, r *http.Request) {
