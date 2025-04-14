@@ -1,45 +1,46 @@
 package main
 
 import (
+	"backend/blockchain"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"backend/blockchain"
+
 	"github.com/gorilla/mux"
 )
 
 var bc *blockchain.Blockchain
 
 type Product struct {
-	ID          int    `json:"id"`
-	Name        string `json:"name"`
-	Price       string `json:"price"`
-	Shop        string `json:"shop"`
-	OnBlinkit   bool   `json:"onBlinkit"`
-	Location    string `json:"location,omitempty"`
+	ID        int    `json:"id"`
+	Name      string `json:"name"`
+	Price     string `json:"price"`
+	Shop      string `json:"shop"`
+	OnBlinkit bool   `json:"onBlinkit"`
+	Location  string `json:"location,omitempty"`
 }
 
 var products = []Product{
-	{ID: 1, Name: "Campus T-Shirt", Price: "₹499", Shop: "Campus Store", OnBlinkit: false},
+	{ID: 1, Name: "Campus T-Shirt", Price: "₹0", Shop: "Campus Store", OnBlinkit: false},
 	{ID: 2, Name: "Special Chai Mix", Price: "₹150", Shop: "Canteen", OnBlinkit: false},
 }
 
 func main() {
 	bc = blockchain.NewBlockchain()
-	
+
 	r := mux.NewRouter()
-	
+
 	// Product endpoints
 	r.HandleFunc("/products", getProducts).Methods("GET")
 	r.HandleFunc("/products", addProduct).Methods("POST")
-	
+
 	// Blockchain endpoints
 	r.HandleFunc("/blockchain", getBlockchain).Methods("GET")
-	
+
 	// Login endpoint
 	r.HandleFunc("/login", login).Methods("POST")
-	
+
 	fmt.Println("Server running on :8080")
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
@@ -50,17 +51,24 @@ func getProducts(w http.ResponseWriter, r *http.Request) {
 }
 
 func addProduct(w http.ResponseWriter, r *http.Request) {
-	var newProduct Product
-	if err := json.NewDecoder(r.Body).Decode(&newProduct); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	
-	// Add to blockchain
-	bc.AddBlock(newProduct.ID)
-	
-	products = append(products, newProduct)
-	w.WriteHeader(http.StatusCreated)
+    var newProduct Product
+    if err := json.NewDecoder(r.Body).Decode(&newProduct); err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+
+    // Add complete product to blockchain
+    bc.AddBlock(blockchain.Product{
+        ID:        newProduct.ID,
+        Name:      newProduct.Name,
+        Price:     newProduct.Price,
+        Shop:      newProduct.Shop,
+        OnBlinkit: newProduct.OnBlinkit,
+        Location:  newProduct.Location,
+    })
+
+    products = append(products, newProduct)
+    w.WriteHeader(http.StatusCreated)
 }
 
 func getBlockchain(w http.ResponseWriter, r *http.Request) {
