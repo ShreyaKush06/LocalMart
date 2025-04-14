@@ -2,15 +2,22 @@ package main
 
 import (
 	"backend/blockchain"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
+	"time"
 
+	"github.com/dgrijalva/jwt-go"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 )
 
 var bc *blockchain.Blockchain
+var db *sql.DB
+var jwtKey = []byte("your_secret_key") // Replace with a secure key
 
 type Product struct {
 	ID        int    `json:"id"`
@@ -21,6 +28,17 @@ type Product struct {
 	Location  string `json:"location,omitempty"`
 }
 
+type Credentials struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type Claims struct {
+	Username string `json:"username"`
+	Role     string `json:"role"`
+	jwt.StandardClaims
+}
+
 var products = []Product{
 	{ID: 1, Name: "Campus T-Shirt", Price: "₹0", Shop: "Campus Store", OnBlinkit: false},
 	{ID: 2, Name: "Special Chai Mix", Price: "₹150", Shop: "Canteen", OnBlinkit: false},
@@ -29,24 +47,33 @@ var products = []Product{
 var requestedItems = []Product{}
 
 func main() {
+	// Connect to MySQL
+	var err error
+	db, err = sql.Open("mysql", "root:password@tcp(127.0.0.1:3306)/blinket_gap_filler")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
 	bc = blockchain.NewBlockchain()
 
 	r := mux.NewRouter()
 
-	// Product endpoints
-	r.HandleFunc("/products", getProducts).Methods("GET")
-	r.HandleFunc("/products", addProduct).Methods("POST")
+	// Public routes
+	r.HandleFunc("/login", login).Methods("POST")
 
-	// Requested items endpoints
-	r.HandleFunc("/requests", requestItem).Methods("POST")
-	r.HandleFunc("/requests", getRequestedItems).Methods("GET")
-	r.HandleFunc("/list-item", listItem).Methods("POST")
+	// Protected routes
+	api := r.PathPrefix("/api").Subrouter()
+	api.Use(authMiddleware)
+	api.HandleFunc("/requests", getRequestedItems).Methods("GET")
+	api.HandleFunc("/list-item", listItem).Methods("POST")
+
+	// Product endpoints
+	api.HandleFunc("/products", getProducts).Methods("GET")
+	api.HandleFunc("/products", addProduct).Methods("POST")
 
 	// Blockchain endpoints
-	r.HandleFunc("/blockchain", getBlockchain).Methods("GET")
-
-	// Login endpoint
-	r.HandleFunc("/login", login).Methods("POST")
+	api.HandleFunc("/blockchain", getBlockchain).Methods("GET")
 
 	fmt.Println("Server running on :8080")
 	log.Fatal(http.ListenAndServe(":8080", r))
@@ -132,7 +159,73 @@ func getBlockchain(w http.ResponseWriter, r *http.Request) {
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
-	// Simplified login (add proper auth later)
-	w.WriteHeader(http.StatusOK)
+	var creds Credentials
+	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	var hashedPassword, role string
+	err := db.QueryRow("SELECT password, name FROM users INNER JOIN roles ON users.role_id = roles.id WHERE username = ?", creds.Username).Scan(&hashedPassword, &role)
+	if err != nil {
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	// Compare passwords (use bcrypt in production)
+	if creds.Password != hashedPassword {
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	// Generate JWT
+	expirationTime := time.Now().Add(24 * time.Hour)
+	claims := &Claims{
+		Username: creds.Username,
+		Role:     role,
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: expirationTime.Unix(),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString(jwtKey)
+	if err != nil {
+		http.Error(w, "Could not generate token", http.StatusInternalServerError)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:    "token",
+		Value:   tokenString,
+		Expires: expirationTime,
+	})
 	json.NewEncoder(w).Encode(map[string]string{"message": "Login successful"})
+}
+
+func authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie("token")
+		if err != nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		tokenStr := cookie.Value
+		claims := &Claims{}
+		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
+			return jwtKey, nil
+		})
+		if err != nil || !token.Valid {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		// Add role-based access control
+		if strings.HasPrefix(r.URL.Path, "/api/requests") && claims.Role != "admin" {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
