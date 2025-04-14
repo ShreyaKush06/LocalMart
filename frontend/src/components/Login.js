@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const Login = () => {
     const [credentials, setCredentials] = useState({ username: '', password: '' });
@@ -38,6 +38,9 @@ const Login = () => {
                 />
                 <button type="submit">Login</button>
             </form>
+            <p className="form-footer">
+                Don't have an account? <Link to="/signup">Sign up</Link>
+            </p>
         </div>
     );
 };

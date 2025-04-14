@@ -29,6 +29,7 @@ const Navbar = () => {
                 <Link to="/" className="nav-link">Products</Link>
                 {role === 'admin' && <Link to="/admin" className="nav-link">Admin Panel</Link>}
                 <Link to="/login" className="nav-link">Login</Link>
+                <Link to="/signup" className="nav-link">Sign Up</Link> {/* Add this line */}
             </div>
         </nav>
     );

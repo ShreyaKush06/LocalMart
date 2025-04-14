@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -46,14 +47,73 @@ var products = []Product{
 
 var requestedItems = []Product{}
 
+func initializeDatabase() error {
+	// Connect to MySQL server (without database)
+	rootDB, err := sql.Open("mysql", "root:Vaidik@2005@tcp(127.0.0.1:3306)/")
+	if err != nil {
+		return err
+	}
+	defer rootDB.Close()
+
+	// Create database if not exists
+	_, err = rootDB.Exec("CREATE DATABASE IF NOT EXISTS `blinki-filler-db`")
+	if err != nil {
+		return err
+	}
+
+	// Create tables
+	queries := []string{
+		`CREATE TABLE IF NOT EXISTS roles (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(50) NOT NULL UNIQUE
+        )`,
+		`CREATE TABLE IF NOT EXISTS users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(50) NOT NULL UNIQUE,
+            password VARCHAR(255) NOT NULL,
+            role_id INT NOT NULL,
+            FOREIGN KEY (role_id) REFERENCES roles(id)
+        )`,
+		`INSERT IGNORE INTO roles (id, name) VALUES (1, 'admin'), (2, 'user')`,
+		`INSERT IGNORE INTO users (username, password, role_id) 
+         VALUES ('admin1', 'admin_password', 1), ('user1', 'user_password', 2)
+         ON DUPLICATE KEY UPDATE username=username`,
+	}
+
+	for _, query := range queries {
+		_, err := db.Exec(query)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func main() {
-	// Connect to MySQL
+	// Get DB credentials from env or use defaults
+	dbUser := getEnv("DB_USER", "root")
+	dbPass := getEnv("DB_PASS", "Vaidik@2005")
+	dbHost := getEnv("DB_HOST", "127.0.0.1")
+	dbPort := getEnv("DB_PORT", "3306")
+	dbName := getEnv("DB_NAME", "blinki-filler-db")
+
+	// Connection string
+	connectionString := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
+		dbUser, dbPass, dbHost, dbPort, dbName)
+
+	// Connect
 	var err error
-	db, err = sql.Open("mysql", "root:password@tcp(127.0.0.1:3306)/blinket_gap_filler")
+	db, err = sql.Open("mysql", connectionString)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
+
+	// Initialize database
+	if err := initializeDatabase(); err != nil {
+		log.Fatal("Database initialization failed: ", err)
+	}
 
 	bc = blockchain.NewBlockchain()
 
@@ -61,6 +121,7 @@ func main() {
 
 	// Public routes
 	r.HandleFunc("/login", login).Methods("POST")
+	r.HandleFunc("/signup", signup).Methods("POST")
 
 	// Protected routes
 	api := r.PathPrefix("/api").Subrouter()
@@ -77,6 +138,14 @@ func main() {
 
 	fmt.Println("Server running on :8080")
 	log.Fatal(http.ListenAndServe(":8080", r))
+}
+
+// Helper function to get env vars with defaults
+func getEnv(key, fallback string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return fallback
 }
 
 func getProducts(w http.ResponseWriter, r *http.Request) {
@@ -200,6 +269,35 @@ func login(w http.ResponseWriter, r *http.Request) {
 		Expires: expirationTime,
 	})
 	json.NewEncoder(w).Encode(map[string]string{"message": "Login successful"})
+}
+
+func signup(w http.ResponseWriter, r *http.Request) {
+	var creds Credentials
+	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	// Check if username already exists
+	var exists bool
+	err := db.QueryRow("SELECT 1 FROM users WHERE username = ?", creds.Username).Scan(&exists)
+	if err == nil {
+		http.Error(w, "Username already exists", http.StatusConflict)
+		return
+	}
+
+	// In production, hash the password with bcrypt here
+
+	// Insert new user (regular user role = 2)
+	_, err = db.Exec("INSERT INTO users (username, password, role_id) VALUES (?, ?, 2)",
+		creds.Username, creds.Password)
+	if err != nil {
+		http.Error(w, "Failed to create user", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]string{"message": "User created successfully"})
 }
 
 func authMiddleware(next http.Handler) http.Handler {
