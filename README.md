@@ -6,7 +6,21 @@
 ./start-app.sh
 ```
 
-- Or
+- Or if you have dependencies installed
+
+- For Go
+
+```
+cd backend
+go mod tidy
+```
+
+- For Frontend
+
+```
+cd frontend
+npm install
+```
 
 1. Terminal 1 
 
