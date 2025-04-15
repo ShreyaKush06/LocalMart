@@ -49,14 +49,14 @@ var requestedItems = []Product{}
 
 func initializeDatabase() error {
 	// Connect to MySQL server (without database)
-	rootDB, err := sql.Open("mysql", "root:Vaidik@2005@tcp(127.0.0.1:3306)/")
+	rootDB, err := sql.Open("mysql", "root:Ggoyat@15@tcp(127.0.0.1:3306)/")
 	if err != nil {
 		return err
 	}
 	defer rootDB.Close()
 
 	// Create database if not exists
-	_, err = rootDB.Exec("CREATE DATABASE IF NOT EXISTS `blinki-filler-db`")
+	_, err = rootDB.Exec("CREATE DATABASE IF NOT EXISTS `blinkit-gap-filler-db`")
 	if err != nil {
 		return err
 	}
@@ -93,10 +93,10 @@ func initializeDatabase() error {
 func main() {
 	// Get DB credentials from env or use defaults
 	dbUser := getEnv("DB_USER", "root")
-	dbPass := getEnv("DB_PASS", "Vaidik@2005")
+	dbPass := getEnv("DB_PASS", "Ggoyat@15")
 	dbHost := getEnv("DB_HOST", "127.0.0.1")
 	dbPort := getEnv("DB_PORT", "3306")
-	dbName := getEnv("DB_NAME", "blinki-filler-db")
+	dbName := getEnv("DB_NAME", "blinkit-gap-filler-db")
 
 	// Connection string
 	connectionString := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
