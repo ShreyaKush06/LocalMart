@@ -56,7 +56,7 @@ func initializeDatabase() error {
 	defer rootDB.Close()
 
 	// Create database if not exists
-	_, err = rootDB.Exec("CREATE DATABASE IF NOT EXISTS `blinkit-gap-filler-db`")
+	_, err = rootDB.Exec("CREATE DATABASE IF NOT EXISTS `LocalMart`")
 	if err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ func main() {
 	dbPass := getEnv("DB_PASS", "Ggoyat@15")
 	dbHost := getEnv("DB_HOST", "127.0.0.1")
 	dbPort := getEnv("DB_PORT", "3306")
-	dbName := getEnv("DB_NAME", "blinkit-gap-filler-db")
+	dbName := getEnv("DB_NAME", "LocalMart")
 
 	// Connection string
 	connectionString := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",

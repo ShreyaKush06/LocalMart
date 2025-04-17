@@ -1,35 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
-import '../App.css';
+import './Navbar.css';
 
 const Navbar = () => {
-    const [role, setRole] = useState('');
-
-    useEffect(() => {
-        const fetchRole = async () => {
-            try {
-                const res = await axios.get('/api/role'); // Add an endpoint to fetch user role
-                setRole(res.data.role);
-            } catch (error) {
-                console.error('Error fetching role:', error);
-            }
-        };
-        fetchRole();
-    }, []);
-
     return (
         <nav className="navbar">
-            <div className="navbar-brand">
-                <Link to="/">
-                    <h1>Blinket Gap Filler</h1>
-                </Link>
+            <div className="navbar-left">
+                <Link to="/" className="navbar-brand">Home</Link>
             </div>
-            <div className="navbar-links">
-                <Link to="/" className="nav-link">Products</Link>
-                {role === 'admin' && <Link to="/admin" className="nav-link">Admin Panel</Link>}
-                <Link to="/login" className="nav-link">Login</Link>
-                <Link to="/signup" className="nav-link">Sign Up</Link> {/* Add this line */}
+            <div className="navbar-right">
+                <Link to="/login" className="navbar-link">Login</Link>
+                <Link to="/signup" className="navbar-link">Signup</Link>
             </div>
         </nav>
     );
