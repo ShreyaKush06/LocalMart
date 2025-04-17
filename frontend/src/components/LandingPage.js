@@ -1,8 +1,10 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom"; // Import useNavigate
 import "./LandingPage.css";
 
 const LandingPage = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const navigate = useNavigate(); // Initialize navigate
 
   const products = [
     { id: 1, name: "Campus T-Shirt", price: "₹0", shop: "Campus Store", verified: true, category: "Clothing" },
@@ -32,7 +34,9 @@ const LandingPage = () => {
           />
         </div>
         <div className="navbar-right">
-          <button className="auth-btn">Login | Sign Up</button>
+          <button className="auth-btn" onClick={() => navigate("/signup")}>
+            Login | Sign Up
+          </button>
         </div>
       </nav>
 
