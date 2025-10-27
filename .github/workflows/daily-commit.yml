@@ -42,4 +42,5 @@ jobs:
           file_pattern: daily_update_log.txt
           # Ensure the bot uses the required user/email format
           commit_user: 'DevSync Automation Bot'
+          commit_author: 'DevSync Automation Bot <automation@devsync.com>'vSync Automation Bot'
           commit_author: 'DevSync Automation Bot <automation@devsync.com>'
