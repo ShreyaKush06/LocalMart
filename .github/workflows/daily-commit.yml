@@ -1,0 +1,45 @@
+name: Daily Automated Commit
+
+on:
+  # 1. Schedule trigger: Runs daily at 02:30 AM UTC
+  schedule:
+    - cron: '30 02 * * *'
+  # Enables manual trigger from the GitHub Actions UI
+  workflow_dispatch:
+
+jobs:
+  daily_update:
+    # *FIX*: Grants the job necessary permission to push commits back to the repository
+    permissions:
+      contents: write 
+
+    # Use a stable runner environment
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repository content
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Required step name with email
+      - name: Step named 24f3003529@ds.study.iitm.ac.in
+        run: |
+          echo "This step fulfills the naming requirement."
+
+      # Create or append to the log file to ensure a change exists
+      - name: Generate daily update file
+        run: |
+          echo "Daily automated run at $(date)" >> daily_update_log.txt
+
+      # 3. Create a commit in each run
+      - name: Auto Commit daily_update_log.txt
+        # *FIX*: Use the correct and stable action reference
+        uses: stefanzweifel/git-auto-commit-action@v5 
+        with:
+          # Set the commit message (required task)
+          commit_message: 'Automated Daily Update: $(date +%Y-%m-%d)'
+          # Specify files to commit
+          file_pattern: daily_update_log.txt
+          # Ensure the bot uses the required user/email format
+          commit_user: 'DevSync Automation Bot'
+          commit_author: 'DevSync Automation Bot <automation@devsync.com>'
